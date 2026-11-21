@@ -1,18 +1,15 @@
-"""Email campaign compose / send - notification fan-out is the Observer seam."""
-
+"""Email campaign compose / send through shared Observer mechanism.
+Kyle owns Sprint 2 task #14. Existing public service signatures are retained.
+"""
 from __future__ import annotations
-
 from datetime import datetime, timezone
 from typing import Any
-
 from sqlmodel import Session, select
-
 from app.database import engine
 from app.models.campaign import Campaign
-from app.models.notification import Notification
-from app.models.user import User
 from app.services import notifications
 from app.services.board_auth import get_user
+from app.services.recipient_policy import verified_alumni_ids
 
 
 def _now() -> str:
@@ -24,14 +21,8 @@ def create_draft(admin_id: int, *, subject: str, body: str) -> dict[str, Any]:
     if not user or user["role"] != "admin":
         return {"ok": False, "error": "admin only"}
     with Session(engine) as session:
-        campaign = Campaign(
-            admin_id=admin_id,
-            subject=subject,
-            body=body,
-            status="draft",
-            created_at=_now(),
-            sent_at=None,
-        )
+        campaign = Campaign(admin_id=admin_id, subject=subject, body=body,
+                            status="draft", created_at=_now(), sent_at=None)
         session.add(campaign)
         session.commit()
         session.refresh(campaign)
@@ -40,8 +31,9 @@ def create_draft(admin_id: int, *, subject: str, body: str) -> dict[str, Any]:
 
 def list_campaigns() -> list[dict[str, Any]]:
     with Session(engine) as session:
-        rows = session.exec(select(Campaign).order_by(Campaign.id.desc())).all()
-        return [r.model_dump() for r in rows]
+        return [row.model_dump() for row in session.exec(
+            select(Campaign).order_by(Campaign.id.desc())
+        ).all()]
 
 
 def send_campaign(admin_id: int, campaign_id: int) -> dict[str, Any]:
@@ -52,6 +44,8 @@ def send_campaign(admin_id: int, campaign_id: int) -> dict[str, Any]:
         campaign = session.get(Campaign, campaign_id)
         if campaign is None:
             return {"ok": False, "error": "campaign not found"}
+        if campaign.status != "draft":
+            return {"ok": False, "error": "campaign already sent"}
         campaign.status = "sent"
         campaign.sent_at = _now()
         session.add(campaign)
@@ -59,27 +53,10 @@ def send_campaign(admin_id: int, campaign_id: int) -> dict[str, Any]:
         session.refresh(campaign)
         row = campaign.model_dump()
 
-    event = {
+    report = notifications.notify({
         "event_type": "campaign.sent",
-        "campaign_id": campaign_id,
+        "source_key": f"campaign:{campaign_id}",
+        "recipient_ids": verified_alumni_ids(),
         "message": f"Campaign: {row['subject']} - {row['body'][:120]}",
-    }
-    # Uses Observer bus - but default observer includes unverified users
-    notifications.notify(event)
-
-    # DEFECT: also writes a second direct insert path for "admins" only,
-    # duplicating notifications when observers already ran
-    with Session(engine) as session:
-        admins = session.exec(select(User).where(User.role == "admin")).all()
-        for admin in admins:
-            session.add(
-                Notification(
-                    user_id=admin.id,
-                    event_type="campaign.sent",
-                    message=event["message"],
-                    created_at=_now(),
-                )
-            )
-        session.commit()
-
-    return {"ok": True, "campaign": row}
+    })
+    return {"ok": True, "campaign": row, "notification_failures": report.failed}
