@@ -1,0 +1,8 @@
+digraph UC { graph [rankdir=LR,bgcolor="white",pad=.4,nodesep=.38,ranksep=.9, splines=polyline,label="UWI CONNECT  /  SPRINT 2 USE CASES",labelloc=t,fontname="DejaVu Sans",fontsize=19,fontcolor="#18334C"]; node [fontname="DejaVu Sans",fontsize=10]; edge [color="#497286",arrowsize=.65];
+ Alumni [shape=box,style="rounded,filled",fillcolor="#E3F2F2",color="#1E6674",label="ALUMNUS\n(verified for submission)"]; Admin [shape=box,style="rounded,filled",fillcolor="#FFF2DE",color="#AB732A",label="ADMINISTRATOR"];
+ subgraph cluster_sys { label="UWI Connect application";style="rounded";color="#9DB7C7";bgcolor="#FAFCFD"; node [shape=ellipse,style=filled,fillcolor="#EEF4F9",color="#54798E"];
+ Login [label="Log in / verify email"]; Browse [label="Browse published\njob / event listings"]; Submit [label="Submit job / event\n(status: pending)"]; Inbox [label="View in-app\nnotifications"]; Review [label="Review pending\nlistings"]; Publish [label="Publish approved\nlisting"]; Reject [label="Reject pending\nlisting"]; Draft [label="Create campaign\ndraft"]; Send [label="Send campaign"]; Verify [label="Select verified alumni\nrecipients",fillcolor="#E5F5EE"]; Dispatch [label="Dispatch notification\n(Observer)",fillcolor="#FFF1DD"]; Persist [label="Persist in-app\nnotification",fillcolor="#FFF1DD"]; }
+ Alumni -> Login; Alumni -> Browse; Alumni -> Submit; Alumni -> Inbox;
+ Admin -> Review; Admin -> Publish; Admin -> Reject; Admin -> Draft; Admin -> Send;
+ Publish -> Verify [style=dashed,label="«include»"]; Send -> Verify [style=dashed,label="«include»"]; Publish -> Dispatch [style=dashed,label="«include»"]; Send -> Dispatch [style=dashed,label="«include»"]; Dispatch -> Persist [style=dashed,label="«include»"];
+}
