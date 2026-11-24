@@ -1,0 +1,19 @@
+digraph UML { graph [rankdir=TB, bgcolor="white", pad=.3, nodesep=.45, ranksep=.85, splines=polyline, fontname="DejaVu Sans", label="SPRINT 2  /  IMPLEMENTED OBSERVER ARCHITECTURE", labelloc=t, fontsize=18, fontcolor="#18334C"]; node [shape=record, fontname="DejaVu Sans", fontsize=10, color="#2B566C", style="rounded,filled", fillcolor="#F1F7F8", margin=.12]; edge [fontname="DejaVu Sans", fontsize=9,color="#52778B", arrowsize=.7];
+ User [label="{User (SQLModel)|id: int\lrole: str\lemail_verified: int\l}"];
+ Listing [label="{Listing (SQLModel)|id: int\lauthor_id: int\lkind: str\lstatus: str\l}"];
+ Campaign [label="{Campaign (SQLModel)|id: int\ladmin_id: int\lstatus: str\l}"];
+ Notification [label="{Notification (SQLModel)|id: int\luser_id: int\levent_type: str\lmessage: str\l}"];
+ Boards [label="{boards service|submit_listing()\lpublish_listing()\lreject_listing()\l}", fillcolor="#E5F4F3"];
+ Campaigns [label="{campaigns service|create_draft()\lsend_campaign()\l}",fillcolor="#E5F4F3"];
+ Policy [label="{recipient_policy|verified_alumni_ids(): tuple[int]\l}"];
+ Notify [label="{notifications service|notify(event): DeliveryReport\linbox(user_id)\l}",fillcolor="#FFF3DF"];
+ Subject [label="{NotificationSubject|_observers: list[Observer]\lsubscribe(observer)\lunsubscribe(observer)\lpublish(event): DeliveryReport\l}",fillcolor="#DCEAF8",penwidth=2];
+ Event [label="{NotificationEvent (frozen)|event_type: str\lmessage: str\lsource_key: str\lrecipient_ids: tuple[int]\lmetadata: dict\l}"];
+ Report [label="{DeliveryReport (frozen)|attempted: int\lfailed: int\lerrors: tuple[str]\l}"];
+ Retry [label="{RetryObserver|observer: Callable\lmax_attempts: int = 3\lhistory: tuple[AttemptRecord]\l__call__(event)\l}",fillcolor="#FCE7DC"];
+ InApp [label="{InAppNotificationObserver|__call__(event)\lPersist unique user,event,message\l}",fillcolor="#E5F4F3"];
+ Boards -> Listing [label="CRUD",arrowhead=vee]; Campaigns -> Campaign [label="CRUD",arrowhead=vee];
+ Boards -> Notify [label="listing.published",penwidth=2]; Campaigns -> Notify [label="campaign.sent",penwidth=2];
+ Boards -> Policy [style=dashed,label="recipients"]; Campaigns -> Policy [style=dashed,label="recipients"]; Policy -> User [label="verified alumni",style=dashed];
+ Notify -> Subject [label="publish",penwidth=2]; Notify -> Event [style=dashed,label="creates"]; Subject -> Event [label="dispatches"]; Subject -> Report [style=dashed,label="returns"]; Subject -> Retry [label="subscribed observer",penwidth=2]; Retry -> InApp [label="wraps / retries",penwidth=2]; InApp -> Notification [label="persists / deduplicates",penwidth=2]; Notification -> User [style=dashed,label="user_id"];
+}
